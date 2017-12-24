@@ -38,11 +38,11 @@ Namespaced keywords are encouraged, for the better code navigation and autocompl
 
 Options map structure:
 
-- `info` to print to *out* if validation failed
-- `spec` spec to validate the value, defaults to `string?`
-- `require` fails validation, if value is missing, fefault is `false`
-- `default` to provide a fallback value if it is missing
-- `secret to hide value from *out* during validation`, default is `false`
+- `:info` to print to *out* if validation failed
+- `:spec` spec-compatible (including any predicate) to validate the value, defaults to `string?`
+- `:require` fails validation, if value is missing, default is `false`
+- `:default` to provide a fallback value if it is missing
+- `:secret to hide value from *out* during validation`, default is `false`
 
 ```clojure
 (cfg/def ::oauth-secret {:info    "OAuth secret to validate token"
@@ -71,6 +71,12 @@ If you need softer version, and to handle errors manually, then use
 
 ```clojure
 (cfg/check)
+```
+
+If during REPL development you ever need whole configuration map, it is available using:
+
+```clojure
+(cfg/config)
 ```
 
 ## License
