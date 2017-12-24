@@ -28,8 +28,8 @@ Namespaced keywords are encouraged, for the better code navigation and autocompl
                             :default 8080})
 
 (cfg/defconfig ::oauth-secret {:info    "OAuth secret for requesting token"
-                               :require true
-                               :secret? true})
+                               :secret  true
+                               :require true})
 ```
 
 By default everything is not secret, not required and is `string?`.
