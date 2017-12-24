@@ -1,4 +1,4 @@
-(defproject wrench "0.0.1-SNAPSHOT"
+(defproject wrench "0.0.1"
   :description "Elegant project configuration for a more civilised zge"
 
   :url "https://github.com/otann/wrench/"
