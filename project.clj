@@ -3,7 +3,8 @@
 
   :url "https://github.com/otann/wrench/"
 
-  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+                 [org.clojure/tools.namespace "0.2.11"]]
 
   :profiles {:uberjar {:aot :all}
              :dev     {:plugins [[pjstadig/humane-test-output "0.8.2"]

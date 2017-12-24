@@ -3,7 +3,9 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [clojure.tools.namespace.dir :as dir]
+            [clojure.tools.namespace.track :as track]))
 
 
 (defn- keywordize [s]
@@ -99,6 +101,8 @@
 
 
 (defn config []
+  ;; ensures all namespaces with defs are loaded
+  (dir/scan-all (track/tracker))
   (into {} (for [field-name (keys @config-specs)]
              [field-name (get field-name)])))
 
