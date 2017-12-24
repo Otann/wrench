@@ -1,14 +1,22 @@
 # Wrench
 
-Configuration management for a civilized age
+[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=5)](https://circleci.com/gh/Otann/morse)
+[![Clojars](https://img.shields.io/clojars/v/wrench.svg)](https://clojars.org/wrench)
 
-Goals:
+<img width="30%"
+     max-height="100px"
+     align="right" padding="5px"
+     alt=":)"
+     src="/wrench.png"/>
 
-- follows 12-factor design pattern, reads values only from environment variables
-- each configuration key is acompanied with a description and a spec
-- definition of each key is easily traceable using namespaced keywords
+Wrench is a library to manage your clojure app's configuration.
+It is designed with specifig goals in mind:
+
+- All values should come mostly from environment variables, as [12 factors](https://12factor.net/config) recommend
+- Each confoguration key is accompanied with a description and a spec
+- Whole configuration can be validated at once before app starts
+- Definition of each key is easily traceable using namespaced keywords
 - configuration values are coerced to their spec from json & yaml (*)
-- whole configuration can be validated at once before app starts
 
 In addition to environment variables, for local development, wrench reads `.config.edn`.
 
@@ -18,30 +26,35 @@ Add `[wrench "0.1.0"]` to the dependency section in your project.clj file.
 
 ## Usage
 
-First, define your configuration key.
-Namespaced keywords are encouraged, for the better code navigation and autocompletion
+Start by defininig your configuration keys and giving them description.
+Namespaced keywords are encouraged, for the better code navigation and autocompletion.
 
 ```clojure
 (require '[wrench.core :as cfg])
-(cfg/defconfig ::http-port {:info    "HTTP port"
-                            :spec    int?
-                            :default 8080})
-
-(cfg/defconfig ::oauth-secret {:info    "OAuth secret for requesting token"
-                               :secret  true
-                               :require true})
+(cfg/def ::http-port {:info    "HTTP port"
+                      :spec    int?
+                      :default 8080})
 ```
 
-By default everything is not secret, not required and is `string?`.
+Options map structure:
 
-Then pull the value where needed
+- `info` to print to *out* if validation failed
+- `spec` spec to validate the value, defaults to `string?`
+- `require` fails validation, if value is missing, fefault is `false`
+- `default` to provide a fallback value if it is missing
+- `secret to hide value from *out* during validation`, default is `false`
 
 ```clojure
-(defn create-service []
-  {::http/port              (cfg/get ::config/http-port)
-   ::http/resource-path     "/public"
-   ::http/routes            (create-routes)
-   ::http/type              :jetty)
+(cfg/def ::oauth-secret {:info    "OAuth secret to validate token"
+                         :require true
+                         :secret  true})
+
+```
+
+Then pull the value where need it, values will be available in static (maning `def`s) and coerced
+
+```clojure
+(cfg/get ::config/http-port)
 ```
 
 To ensure you have everything configured properly
@@ -50,7 +63,7 @@ To ensure you have everything configured properly
 (cfg/check-or-quit!)
 ```
 
-If everything is configured properly, then configuration will be printed out,
+If everything is alright, then configuration will be printed to *out*,
 replacing values marked as `:secret` with `<SECRET>`. If there were errors during validation
 or required keys are missing, then aggregated summary will be printed and application will exit.
 

@@ -79,6 +79,7 @@
   - `default` to provide a fallback value
   - `secret to hide value from *out* during validation`"
   [field-name field-def]
+  {:pre [(string? (:info field-def))]}
   (swap! config-specs #(assoc % field-name field-def)))
 
 
@@ -111,7 +112,13 @@
   []
   (let [errors (filter (complement nil?)
                        (collect-errors))]
-    (if-not (empty? errors)
-      (map println errors)
-      (System/exit 1))))
+    (if (empty? errors)
+      (do (for [[field-name value] (config)]
+            (println "- "
+                     field-name ": "
+                     (if (get-in @config-specs [field-name :secret])
+                       "<SECRET>"
+                       value))))
+      (do (map println errors)
+          (System/exit 1)))))
 
