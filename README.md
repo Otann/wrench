@@ -22,7 +22,7 @@ In addition to environment variables, for local development, wrench reads from `
 
 ## Installation
 
-Add `[wrench "0.0.1"]` to the dependency section in your project.clj file.
+Add `[wrench "0.1.0"]` to the dependency section in your project.clj file.
 
 ## Usage
 
@@ -38,11 +38,11 @@ Namespaced keywords are encouraged, for the better code navigation and autocompl
 
 Options map structure:
 
-- `:info` to print to *out* if validation failed
+- `:info` to print to `*out*` if validation failed
 - `:spec` spec-compatible (including any predicate) to validate the value, defaults to `string?`
 - `:require` fails validation, if value is missing, default is `false`
 - `:default` to provide a fallback value if it is missing
-- `:secret to hide value from *out* during validation`, default is `false`
+- `:secret` to hide value from `*out*` during validation, default is `false`
 
 ```clojure
 (cfg/def ::oauth-secret {:info    "OAuth secret to validate token"
@@ -63,7 +63,7 @@ To ensure you have everything configured properly
 (cfg/check-or-quit!)
 ```
 
-If everything is alright, then configuration will be printed to *out*,
+If everything is alright, then configuration will be printed to `*out*`,
 replacing values marked as `:secret` with `<SECRET>`. If there were errors during validation
 or required keys are missing, then aggregated summary will be printed and application will exit.
 
