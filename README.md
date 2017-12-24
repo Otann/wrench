@@ -1,6 +1,6 @@
 # Wrench
 
-[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=5)](https://circleci.com/gh/Otann/morse)
+[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/morse)
 [![Clojars](https://img.shields.io/clojars/v/wrench.svg)](https://clojars.org/wrench)
 
 <img width="30%"
@@ -12,17 +12,17 @@
 Wrench is a library to manage your clojure app's configuration.
 It is designed with specifig goals in mind:
 
-- All values should come mostly from environment variables, as [12 factors](https://12factor.net/config) recommend
+- All values come from environment variables, as [12 factors](https://12factor.net/config) recommend
 - Each confoguration key is accompanied with a description and a spec
 - Whole configuration can be validated at once before app starts
 - Definition of each key is easily traceable using namespaced keywords
-- configuration values are coerced to their spec from json & yaml (*)
+- Configuration values are coerced to their spec from string and edn
 
-In addition to environment variables, for local development, wrench reads `.config.edn`.
+In addition to environment variables, for local development, wrench reads from `.config.edn`.
 
 ## Installation
 
-Add `[wrench "0.1.0"]` to the dependency section in your project.clj file.
+Add `[wrench "0.0.1"]` to the dependency section in your project.clj file.
 
 ## Usage
 
