@@ -1,6 +1,6 @@
 # Wrench
 
-[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/morse)
+[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/wrench)
 [![Clojars](https://img.shields.io/clojars/v/wrench.svg)](https://clojars.org/wrench)
 
 <img width="30%"
