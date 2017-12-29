@@ -1,10 +1,9 @@
 (defproject wrench "0.1.1-SNAPSHOT"
   :description "Elegant project configuration for a more civilised zge"
 
-  :url "https://github.com/otann/wrench/"
+  :url "https://github.com/otann/wrench"
 
-  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                 [org.clojure/tools.namespace "0.2.11"]]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]]
 
   :profiles {:uberjar {:aot :all}
              :dev     {:plugins [[pjstadig/humane-test-output "0.8.2"]
