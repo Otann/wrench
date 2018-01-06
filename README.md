@@ -1,9 +1,9 @@
 # Wrench
 
 [![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/wrench)
-[![Clojars](https://img.shields.io/clojars/v/wrench.svg)](https://clojars.org/wrench)
+[![Clojars](https://img.shields.io/clojars/v/wrench.svg?no-cache=1)](https://clojars.org/wrench)
 
-<img width="30%"
+<img width="25%"
      max-height="100px"
      align="right" padding="5px"
      alt=":)"
@@ -12,8 +12,8 @@
 Wrench is a library to manage your clojure app's configuration.
 It is designed with specific goals in mind:
 
-- **All configuration and related functionality is available during initialization of your code**
-- That means you can use it in your `def`s (and defl-like macros, like `defroutes`)  
+- **All values and related functionality is available during initialization of your code**
+- That means you can use it in your `def`s (and def-like macros, like `defroutes`)  
 - All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
 - Each configuration key is accompanied with a description and a spec
 - One can ensure that configuration matches provided specs
@@ -34,7 +34,7 @@ Namespaced keywords are encouraged, for the better code navigation and autocompl
 ```clojure
 (require '[wrench.core :as cfg])
 (cfg/def ::http-port {:info    "HTTP port"
-                      :spec    int?
+                      :spec    int?                    
                       :default 8080})
 ```
 
@@ -42,6 +42,7 @@ Options map structure:
 
 - `:info` to print to `*out*` if validation failed
 - `:spec` spec-compatible (including any predicate) to validate the value, defaults to `string?`
+- `:name` name of the environment variable, defaults to capitalised name of the keyword (ignoring namespace) with dashes replaced with underscores
 - `:require` fails validation, if value is missing, default is `false`
 - `:default` to provide a fallback value if it is missing
 - `:secret` to hide value from `*out*` during validation, default is `false`
@@ -51,6 +52,9 @@ Options map structure:
                          :require true
                          :secret  true})
 
+(cfg/def ::host {:info "Remote host for a dependency service"
+                 :name "SERVICE_NAME_HOST"
+                 :require true})
 ```
 
 Then pull the value where need it. 
