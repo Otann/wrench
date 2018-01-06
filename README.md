@@ -57,6 +57,17 @@ Options map structure:
                  :require true})
 ```
 
+If you prefer to keep your configuration in one file, you have an option to define whole config at once
+
+```clojure
+(cfg/defconfig {::oauth-secret {:info    "OAuth secret to validate token"
+                                :require true
+                                :secret  true}
+                ::host         {:info    "Remote host for a dependency service"
+                                :name    "SERVICE_NAME_HOST"
+                                :require true}})
+```
+
 Then pull the value where need it. 
 
 ```clojure

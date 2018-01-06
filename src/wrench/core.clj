@@ -95,6 +95,12 @@
   (swap! config-specs #(assoc % field-name field-def)))
 
 
+(defn defconfig [config]
+  {:pre [(every? #(string? (:info %))
+                 (vals config))]}
+  (swap! config-specs #(merge % config)))
+
+
 (defn- collect-errors []
   (for [[field-name field-data] @config-specs]
     (let [{:keys [info spec require default]
