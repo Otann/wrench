@@ -55,20 +55,22 @@
     (catch Exception e ::s/invalid)))
 
 
-(defn- get-value
+(defn- reload-var
   "Reads value from
   - environment variables, normalizing name to caps and underscores
   - `:default` provided in config definition
   - edn file, intended for local development, name taked from *config-name*"
-  [name-symbol raw-definition]
-  (let [env-data  (get-env-data)
-        spec      (get raw-definition :spec string?)
-        default   (get raw-definition :default)
-        env-name  (get raw-definition :name (keyword name-symbol))
-        env-value (get env-data env-name)]
-    (if env-value
-      (coerce env-value spec)
-      (:default raw-definition))))
+  [var-symbol]
+  (let [definition (meta var-symbol)
+        env-data   (get-env-data)
+        spec       (get definition :spec string?)
+        default    (get definition :default)
+        env-name   (get definition :name (keyword var-symbol))
+        env-value  (get env-data env-name)
+        var-value  (if env-value
+                     (coerce env-value spec)
+                     (:default definition))]
+    (alter-var-root var-symbol var-value)))
 
 
 (defn- find-all-vars
@@ -127,7 +129,7 @@
     - `require` to tell that validation should fail if value is missing
     - `default` to provide a fallback value
     - `secret to hide value from *out* during validation`"
-  [name-symbol raw-definition]
-  `(let [definition# (eval raw-definition)]
-     (def ^{::cfg definition#} name-symbol ::uninitialized)
-     (alter-var-root #'~name-symbol (get-value name-symbol raw-definition))))
+  [var-symbol raw-definition]
+  (let [definition# (eval raw-definition)]
+    `(do (def ^{::cfg definition#} ~var-symbol ::uninitialized)
+         (reload-var #'~var-symbol))))
