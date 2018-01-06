@@ -71,7 +71,7 @@
       (:default raw-definition))))
 
 
-(defn- find-all-definitions
+(defn- find-all-vars
   "Collects all defined configurations, based on meta"
   []
   (for [n (all-ns)
@@ -80,10 +80,10 @@
     v))
 
 
-(defn config
-  "Loads all config definitions as a map"
+(defn- vars-with-def
+  "Builds mapping of vars to their configuration meta"
   []
-  (into {} (for [v (find-all-definitions)] [v (::cfg (meta v))])))
+  (into {} (for [v (find-all-vars)] [v (::cfg (meta v))])))
 
 
 (defn- collect-errors [config]
@@ -101,19 +101,18 @@
         (str "Configuration " var-name " (" info ") was not required, but supplied and does not conform spec")))))
 
 
-
 (defn validate []
-  (every? nil? (collect-errors (config))))
+  (every? nil? (collect-errors (vars-with-def))))
 
 
 (defn validate-or-quit!
   "Ensures that every defined config conforms to it's spec if it is required, quits otherwise"
   []
-  (let [config-data (config)
-        errors      (filter (complement nil?)
-                            (collect-errors config-data))]
+  (let [vars   (vars-with-def)
+        errors (filter (complement nil?)
+                       (collect-errors vars))]
     (if (empty? errors)
-      (doseq [[var-name var-def] config-data]
+      (doseq [[var-name var-def] vars]
         (println "- " var-name ": " (if (:secret var-def) "<SECRET>" var-def)))
       (do (map println errors)
           (System/exit 1)))))
@@ -129,6 +128,6 @@
     - `default` to provide a fallback value
     - `secret to hide value from *out* during validation`"
   [name-symbol raw-definition]
-  `(let [definition (eval raw-definition)]
-     (def ^{::cfg raw-definition} name-symbol ::uninitialized)
+  `(let [definition# (eval raw-definition)]
+     (def ^{::cfg definition#} name-symbol ::uninitialized)
      (alter-var-root #'~name-symbol (get-value name-symbol raw-definition))))
