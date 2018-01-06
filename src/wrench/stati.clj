@@ -34,14 +34,6 @@
          (read-system-env)))
 
 
-;; Config specs discovered while loading user's code. Every cfg/def call appends to this map.
-(defonce ^:private config-specs (atom {}))
-
-
-;; Config specs discovered while loading user's code. Every cfg/def call appends to this map.
-(defonce ^:private config-specs (atom {}))
-
-
 (def ^:private known-conformers
   {int?     #(if (int? %) % (Integer/parseInt %))
    double?  #(if (double? %) % (Double/parseDouble %))
@@ -66,7 +58,7 @@
 (defn- get-value
   "Reads value from
   - environment variables, normalizing name to caps and underscores
-  - `:default` provided in field definition
+  - `:default` provided in config definition
   - edn file, intended for local development, name taked from *config-name*"
   [name-symbol raw-definition]
   (let [env-data  (get-env-data)
@@ -79,11 +71,58 @@
       (:default raw-definition))))
 
 
+(defn- find-all-definitions
+  "Collects all defined configurations, based on meta"
+  []
+  (for [n (all-ns)
+        [_ v] (ns-publics n)
+        :when (::cfg (meta v))]
+    v))
+
+
+(defn config
+  "Loads all config definitions as a map"
+  []
+  (into {} (for [v (find-all-definitions)] [v (::cfg (meta v))])))
+
+
+(defn- collect-errors [config]
+  (for [[var-name var-def] config]
+    (let [{:keys [info spec require default]
+           :or   {require false
+                  spec    string?}} var-def
+          config-value (var-get var-name)
+          is-invalid   (= config-value ::s/invalid)]
+      (cond
+        (and require (nil? config-value))
+        (str "Configuration " var-name " (" info ") is required and is absent or does not conform")
+
+        is-invalid
+        (str "Configuration " var-name " (" info ") was not required, but supplied and does not conform spec")))))
+
+
+
+(defn validate []
+  (every? nil? (collect-errors (config))))
+
+
+(defn validate-or-quit!
+  "Ensures that every defined config conforms to it's spec if it is required, quits otherwise"
+  []
+  (let [config-data (config)
+        errors      (filter (complement nil?)
+                            (collect-errors config-data))]
+    (if (empty? errors)
+      (doseq [[var-name var-def] config-data]
+        (println "- " var-name ": " (if (:secret var-def) "<SECRET>" var-def)))
+      (do (map println errors)
+          (System/exit 1)))))
+
+
 (defmacro def
   "Defines a config to read and validate using a spec
-    Field name is encouraged to ba namespaced keyword, which name will
     be used to match corresponding environment variable
-    Field definiton is a map that should include:
+    Definiton is a map that should include:
     - `info` to print to *out* if validation failed
     - `spec` spec to validate the value
     - `require` to tell that validation should fail if value is missing
@@ -91,5 +130,5 @@
     - `secret to hide value from *out* during validation`"
   [name-symbol raw-definition]
   `(let [definition (eval raw-definition)]
-     (swap! config-specs #(assoc % name-symbol definition))
-     (def name-symbol (get-value name-symbol raw-definition))))
+     (def ^{::cfg raw-definition} name-symbol ::uninitialized)
+     (alter-var-root #'~name-symbol (get-value name-symbol raw-definition))))
