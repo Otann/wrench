@@ -17,7 +17,7 @@ It is designed with specific goals in mind:
 - All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
 - Each configuration key is accompanied with a description and a spec
 - One can ensure that configuration matches provided specs
-- Configuration values are coerced to their spec from string and edn (enables environment vars like `"[8080 8888]"`)
+- Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
 - Namespaced keywords are allowed and encouraged, so definition of each key is easily traceable 
 
 In addition to environment variables, for local development, wrench reads from `.config.edn`.
@@ -83,6 +83,8 @@ If you need softer version, that does not quit, and wish to fix errors manually 
 (cfg/check)
 ```
 
+## REPL and reloaded workflow
+
 If during REPL development you ever need whole configuration map, it is available using:
 
 ```clojure
@@ -95,6 +97,23 @@ collected in a global var, you need to reset it **before** reloading your code:
 ```clojure
 (cfg/reset-defs!)
 ```
+
+To re-read your configuration
+
+```clojure
+(cfg/reload!)
+```
+
+Additionally you can use different filename or supply raw data
+
+```clojure
+(cfg/reload! "dev-config.edn")
+; or
+(cfg/reload! {:http-port 8080
+              :oauth-secret "xxxxxx"})
+```
+
+Be careful including sensitive data like keys, when using latter.
 
 ## License
 

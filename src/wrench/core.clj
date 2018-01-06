@@ -64,11 +64,10 @@
   - `.config.edn` as an edn file, intended for local development
   - `:default` provided in field definition"
   [field-name]
-  (let [env-name  (keyword (name field-name))
-        ;; TODO make env-name also configurable by the user
-        env-value (core-get @env-data env-name)
-        spec      (get-in @config-specs [field-name :spec] string?)
-        default   (get-in @config-specs [field-name :default])]
+  (let [spec      (get-in @config-specs [field-name :spec] string?)
+        default   (get-in @config-specs [field-name :default])
+        env-name  (get-in @config-specs [field-name :name] (keyword (name field-name)))
+        env-value (core-get @env-data env-name)]
     (if env-value
       (coerce env-value spec)
       (get-in @config-specs [field-name :default]))))
