@@ -3,9 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.edn :as edn]
-            [clojure.tools.namespace.dir :as dir]
-            [clojure.tools.namespace.track :as track]))
+            [clojure.edn :as edn]))
 
 
 (defn- keywordize [s]
@@ -21,30 +19,26 @@
        (into {})))
 
 
-(defn- read-env-file [f]
-  (if-let [env-file (io/file f)]
-    (if (.exists env-file)
-      (into {} (edn/read-string (slurp env-file))))))
+;; Contents of process environment. In production usually loaded once when code is loaded.
+;; During development can be reloaded using cfg/reload, including overrides from
+(defonce ^:private env-data (atom (read-system-env)))
 
 
-(def ^:private env-data (merge (read-system-env)
-                               (read-env-file ".config.edn")))
-
-
-(def ^:private config-specs (atom {}))
+;; Config specs discovered while loading user's code. Every cfg/def call appends to this map.
+(defonce ^:private config-specs (atom {}))
 
 
 (def ^:private known-conformers
-  {int?     #(Integer/parseInt %)
-   double?  #(Double/parseDouble %)
-   string?  identity
+  {int?     #(if (int? %) % (Integer/parseInt %))
+   double?  #(if (double? %) % (Double/parseDouble %))
+   string?  str
    keyword? keyword})
 
 
 (defn- edn-conformer [data]
   (try
     (edn/read-string data)
-    (catch Throwable e ::s/invalid)))
+    (catch Exception e ::s/invalid)))
 
 
 (defn- coerce [data spec]
@@ -52,23 +46,29 @@
     (let [conformer (core-get known-conformers spec edn-conformer)
           with-conf (s/and (s/conformer conformer) spec)]
       (s/conform with-conf data))
-    (catch RuntimeException e ::s/invalid)))
-
+    (catch Exception e ::s/invalid)))
 
 (defn get
   "Reads configuration value from
   - environment variables, normalizing name to caps and underscores
   - `.config.edn` as an edn file, intended for local development
-  - `:fallback` provided in field definition"
+  - `:default` provided in field definition"
   [field-name]
   (let [env-name  (keyword (name field-name))
-        env-value (core-get env-data env-name)
+        ;; TODO make env-name also configurable by the user
+        env-value (core-get @env-data env-name)
         spec      (get-in @config-specs [field-name :spec] string?)
         default   (get-in @config-specs [field-name :default])]
     (if env-value
       (coerce env-value spec)
       (get-in @config-specs [field-name :default]))))
 
+(defn select-from-ns [ns-str]
+  (let [ns-config-specs (->> @config-specs
+                             keys
+                             (filter #(= (namespace %) ns-str)))]
+    (into {} (for [k ns-config-specs]
+               [(keyword (name k)) (get k)]))))
 
 (defn def
   "Defines a config to read and validate using a spec
@@ -81,6 +81,7 @@
   - `default` to provide a fallback value
   - `secret to hide value from *out* during validation`"
   [field-name field-def]
+  ;; TODO use spec for validation
   {:pre [(string? (:info field-def))]}
   (swap! config-specs #(assoc % field-name field-def)))
 
@@ -101,8 +102,6 @@
 
 
 (defn config []
-  ;; ensures all namespaces with defs are loaded
-  (dir/scan-all (track/tracker))
   (into {} (for [field-name (keys @config-specs)]
              [field-name (get field-name)])))
 
@@ -126,3 +125,20 @@
       (do (map println errors)
           (System/exit 1)))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; REPL-development helper functions
+
+
+(defn read-env-file [f]
+  (when-let [env-file (io/file f)]
+    (when (.exists env-file)
+      (edn/read-string (slurp env-file)))))
+
+
+(defn reload-with-override! [override]
+  (reset! env-data (merge (read-system-env) override)))
+
+
+(defn purge-defs []
+  (reset! config-specs {}))

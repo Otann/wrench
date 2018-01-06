@@ -1,6 +1,6 @@
 # Wrench
 
-[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/morse)
+[![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/wrench)
 [![Clojars](https://img.shields.io/clojars/v/wrench.svg)](https://clojars.org/wrench)
 
 <img width="30%"
@@ -10,10 +10,10 @@
      src="/wrench.png"/>
 
 Wrench is a library to manage your clojure app's configuration.
-It is designed with specifig goals in mind:
+It is designed with specific goals in mind:
 
 - All values come from environment variables, as [12 factors](https://12factor.net/config) recommend
-- Each confoguration key is accompanied with a description and a spec
+- Each configuration key is accompanied with a description and a spec
 - Whole configuration can be validated at once before app starts
 - Definition of each key is easily traceable using namespaced keywords
 - Configuration values are coerced to their spec from string and edn
@@ -51,7 +51,7 @@ Options map structure:
 
 ```
 
-Then pull the value where need it, values will be available in static (maning `def`s) and coerced
+Then pull the value where need it, values will be available in static (meaning `def`s) and coerced
 
 ```clojure
 (cfg/get ::config/http-port)
