@@ -128,7 +128,7 @@ Be careful including sensitive data like keys, when using latter.
 
 ## License
 
-Copyright © 2017 Anton Chebotaev
+Copyright © 2018 Anton Chebotaev
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
