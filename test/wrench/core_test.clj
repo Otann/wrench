@@ -7,8 +7,8 @@
 
 (use-fixtures
   :each (fn [f]
-          (cfg/purge-defs)
-          (cfg/reload-with-override! {})
+          (cfg/reset-defs!)
+          (cfg/reload! {})
           (f)))
 
 
@@ -23,7 +23,7 @@
 
 (deftest config-from-override
   (testing "Value is discovered from override"
-    (cfg/reload-with-override! {:sample-key "value from override"})
+    (cfg/reload! {:sample-key "value from override"})
     (cfg/def ::sample-key {:info "Sample key to test configuration"})
 
     (is (= (cfg/get ::sample-key)
@@ -32,7 +32,7 @@
 
 (deftest coercion
   (testing "Value is read from an simple edn"
-    (cfg/reload-with-override! {:sample-list "[1 2 3]"})
+    (cfg/reload! {:sample-list "[1 2 3]"})
     (cfg/def ::sample-list {:info "Sample key to test coercion"
                             :spec (s/+ int?)})
 
@@ -52,7 +52,7 @@
 
 (deftest config-collection
   (testing "Config collection works"
-    (cfg/reload-with-override! {:sample-key "value from override"})
+    (cfg/reload! {:sample-key "value from override"})
     (cfg/def ::user {:info "Currently logged-in user"})
     (cfg/def ::sample-key {:info "Sample key to test configuration"})
 
@@ -80,9 +80,9 @@
 (deftest reading-env-file
   (testing "No error when file does not exist"
 
-    (is (nil? (cfg/read-env-file "nonexistent.edn"))))
+    (is (nil? (cfg/read-edn-file "nonexistent.edn"))))
 
   (testing "Parses as EDN"
     (spit "target/dev-env.edn" {:sample-key "1"})
 
-    (is (= {:sample-key "1"} (cfg/read-env-file "target/dev-env.edn")))))
+    (is (= {:sample-key "1"} (cfg/read-edn-file "target/dev-env.edn")))))

@@ -12,11 +12,13 @@
 Wrench is a library to manage your clojure app's configuration.
 It is designed with specific goals in mind:
 
-- All values come from environment variables, as [12 factors](https://12factor.net/config) recommend
+- **All configuration and related functionality is available during initialization of your code**
+- That means you can use it in your `def`s (and defl-like macros, like `defroutes`)  
+- All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
 - Each configuration key is accompanied with a description and a spec
-- Whole configuration can be validated at once before app starts
-- Definition of each key is easily traceable using namespaced keywords
-- Configuration values are coerced to their spec from string and edn
+- One can ensure that configuration matches provided specs
+- Configuration values are coerced to their spec from string and edn (enables environment vars like `"[8080 8888]"`)
+- Namespaced keywords are allowed and encouraged, so definition of each key is easily traceable 
 
 In addition to environment variables, for local development, wrench reads from `.config.edn`.
 
@@ -51,13 +53,17 @@ Options map structure:
 
 ```
 
-Then pull the value where need it, values will be available in static (meaning `def`s) and coerced
+Then pull the value where need it. 
 
 ```clojure
 (cfg/get ::config/http-port)
 ```
 
-To ensure you have everything configured properly
+Values will be available in static (meaning `def`s) and coerced to described spec if possible.
+If a value does not pass validation, `nil` will be used.
+
+No exceptions will be raised, because if there are multiple errors, you'll have to fix them one by one.
+Instead, to ensure you have everything configured properly, validate your config before app starts.
 
 ```clojure
 (cfg/check-or-quit!)
@@ -67,7 +73,7 @@ If everything is alright, then configuration will be printed to `*out*`,
 replacing values marked as `:secret` with `<SECRET>`. If there were errors during validation
 or required keys are missing, then aggregated summary will be printed and application will exit.
 
-If you need softer version, and to handle errors manually, then use
+If you need softer version, that does not quit, and wish to fix errors manually then use
 
 ```clojure
 (cfg/check)
@@ -77,6 +83,13 @@ If during REPL development you ever need whole configuration map, it is availabl
 
 ```clojure
 (cfg/config)
+```
+
+If you use reloaded workflow, it may happen that you remove some defs during development. As those are statically 
+collected in a global var, you need to reset it **before** reloading your code:
+
+```clojure
+(cfg/reset-defs!)
 ```
 
 ## License

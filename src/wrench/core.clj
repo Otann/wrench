@@ -19,9 +19,19 @@
        (into {})))
 
 
+(defn read-edn-file [f]
+  (when-let [env-file (io/file f)]
+    (when (.exists env-file)
+      (edn/read-string (slurp env-file)))))
+
+
+(def ^:dynamic *default-config-name* ".config.edn")
+
+
 ;; Contents of process environment. In production usually loaded once when code is loaded.
-;; During development can be reloaded using cfg/reload, including overrides from
-(defonce ^:private env-data (atom (read-system-env)))
+;; During development can be reloaded using cfg/reload, including overrides from edn file
+(defonce ^:private env-data (atom (merge (read-edn-file *default-config-name*)
+                                         (read-system-env))))
 
 
 ;; Config specs discovered while loading user's code. Every cfg/def call appends to this map.
@@ -126,19 +136,16 @@
           (System/exit 1)))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; REPL-development helper functions
+(defn reload!
+  ([] (reload! (read-edn-file *default-config-name*)))
+  ([override]
+   (let [data (cond
+                (map? override) override
+                (string? override) (read-edn-file override)
+                :else (throw (ex-info "reload supports only string/map override" {})))]
+     (reset! env-data (merge (read-system-env)
+                             data)))))
 
 
-(defn read-env-file [f]
-  (when-let [env-file (io/file f)]
-    (when (.exists env-file)
-      (edn/read-string (slurp env-file)))))
-
-
-(defn reload-with-override! [override]
-  (reset! env-data (merge (read-system-env) override)))
-
-
-(defn purge-defs []
+(defn reset-defs! []
   (reset! config-specs {}))
