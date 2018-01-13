@@ -2,7 +2,15 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn])
+  (:import (java.io Writer)
+           (clojure.lang IObj IDeref Var)))
+
+
+;; Minimal object structure to carry clojure metadata
+(deftype Uninitialized [definition])
+(defmethod print-method Uninitialized [x ^Writer writer]
+  (print-ctor x (fn [o w] (print-method (.toString o) w)) writer))
 
 
 (defn- keywordize [s]
@@ -55,72 +63,52 @@
     (catch Exception e ::s/invalid)))
 
 
-(defn- reload-var
-  "Reads value from
-  - environment variables, normalizing name to caps and underscores
-  - `:default` provided in config definition
-  - edn file, intended for local development, name taked from *config-name*"
-  [var-symbol]
-  (let [definition (meta var-symbol)
-        env-data   (get-env-data)
-        spec       (get definition :spec string?)
-        default    (get definition :default)
-        env-name   (get definition :name (keyword var-symbol))
-        env-value  (get env-data env-name)
-        var-value  (if env-value
-                     (coerce env-value spec)
-                     (:default definition))]
-    (alter-var-root var-symbol var-value)))
-
-
 (defn- find-all-vars
   "Collects all defined configurations, based on meta"
   []
   (for [n (all-ns)
         [_ v] (ns-publics n)
-        :when (::cfg (meta v))]
+        :when (::definition (meta v))]
     v))
 
 
-(defn- vars-with-def
-  "Builds mapping of vars to their configuration meta"
-  []
-  (into {} (for [v (find-all-vars)] [v (::cfg (meta v))])))
-
-
-(defn- collect-errors [config]
-  (for [[var-name var-def] config]
-    (let [{:keys [info spec require default]
-           :or   {require false
-                  spec    string?}} var-def
-          config-value (var-get var-name)
-          is-invalid   (= config-value ::s/invalid)]
+(defn- collect-errors []
+  (for [var-name (find-all-vars)]
+    (let [var-meta   (meta var-name)
+          var-def    (::definition var-meta)
+          required   (:require var-def)
+          var-value  (var-get var-name)
+          is-invalid (= var-value ::s/invalid)]
       (cond
-        (and require (nil? config-value))
-        (str "Configuration " var-name " (" info ") is required and is absent or does not conform")
+        (and require (nil? var-value))
+        (str "Configuration " var-name " (" var-def ") is required and is absent or does not conform")
 
         is-invalid
-        (str "Configuration " var-name " (" info ") was not required, but supplied and does not conform spec")))))
+        (str "Configuration " var-name " (" var-def ") was not required, but supplied and does not conform spec")))))
 
 
 (defn validate []
-  (every? nil? (collect-errors (vars-with-def))))
+  (every? nil? (collect-errors)))
 
 
-(defn validate-or-quit!
-  "Ensures that every defined config conforms to it's spec if it is required, quits otherwise"
-  []
-  (let [vars   (vars-with-def)
-        errors (filter (complement nil?)
-                       (collect-errors vars))]
-    (if (empty? errors)
-      (doseq [[var-name var-def] vars]
-        (println "- " var-name ": " (if (:secret var-def) "<SECRET>" var-def)))
-      (do (map println errors)
-          (System/exit 1)))))
+(defn load-var
+  [^Var var-symbol]
+  (when (instance? Uninitialized (var-get var-symbol))
+    (let [definition (.definition (var-get var-symbol))
+          env-data   (get-env-data)
+          spec       (get definition :spec string?)
+          default    (get definition :default)
+          env-name   (get definition :name (keyword (.sym var-symbol)))
+          env-value  (get env-data env-name)
+          var-value  (if env-value
+                       (coerce env-value spec)
+                       (:default definition))]
+      (alter-var-root var-symbol (constantly var-value))
+      (alter-meta! var-symbol assoc ::definition definition)
+      var-value)))
 
 
-(defmacro def
+(defmacro defcfg
   "Defines a config to read and validate using a spec
     be used to match corresponding environment variable
     Definiton is a map that should include:
@@ -130,6 +118,54 @@
     - `default` to provide a fallback value
     - `secret to hide value from *out* during validation`"
   [var-symbol raw-definition]
-  (let [definition# (eval raw-definition)]
-    `(do (def ^{::cfg definition#} ~var-symbol ::uninitialized)
-         (reload-var #'~var-symbol))))
+  `(do
+     (def ~var-symbol (Uninitialized. ~raw-definition))
+     (load-var #'~var-symbol)))
+
+
+(defcfg port {:info    "USER"
+              :name    :user
+              :require true})
+
+(comment
+
+
+  (with-redefs [port 6060]
+    port)
+  (meta #'port)
+
+  (find-all-vars)
+  (vars-with-meta)
+
+  (collect-errors)
+
+  port
+
+
+
+  (eval
+    (macroexpand-1
+      `(test port {:info    "HTTP posrt"
+                   :default 8080}))
+    )
+
+  )
+
+
+(comment
+
+  ;; Maybe store value in derefable?
+  (deftype Config [definition]
+    IObj
+    (meta [_] definition)
+    (withMeta [_ definition] (Config. definition))
+    IDeref
+    (deref [_] nil)
+    Object
+    (toString [this]
+      (str "Uninitialized value of " (pr-str definition))))
+
+  (defmethod print-method Config [x ^Writer writer]
+    (print-ctor x (fn [o w] (print-method (.toString o) w)) writer))
+
+  )
