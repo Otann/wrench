@@ -12,86 +12,92 @@
 Wrench is a library to manage your clojure app's configuration.
 It is designed with specific goals in mind:
 
-- **All values and related functionality is available during initialization of your code**
+- **All values are available during initialization of your code**
 - That means you can use it in your `def`s (and def-like macros, like `defroutes`)  
 - All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
-- Each configuration key is accompanied with a description and a spec
-- One can ensure that configuration matches provided specs
+- Each configuration is accompanied with a spec
+- One can ensure that configuration matches provided specs during runtime
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
-- Namespaced keywords are allowed and encouraged, so definition of each key is easily traceable 
+- Definition of each key is traceable, since they are simple vars
 
 In addition to environment variables, for local development, wrench reads from `.config.edn`.
 
 ## Installation
 
-Add `[wrench "0.1.1"]` to the dependency section in your project.clj file.
+Add `[wrench "0.2.0"]` to the dependency section in your project.clj file.
 
 ## Usage
 
-Start by defininig your configuration keys and giving them description.
-Namespaced keywords are encouraged, for the better code navigation and autocompletion.
+Simplest way to start is to define a config value to read `USER` environment variable: 
 
 ```clojure
 (require '[wrench.core :as cfg])
-(cfg/def ::http-port {:info    "HTTP port"
-                      :spec    int?                    
-                      :default 8080})
+(cfg/def user)
 ```
 
-Options map structure:
+You can also customize name of the variable and provide specification:
 
-- `:info` to print to `*out*` if validation failed
+```clojure
+(cfg/def port {:name "HTTP_PORT"
+               :spec int?})
+```
+
+
+There are plenty of other options:
+
+- `:doc` will be symbol's documentation
 - `:spec` spec-compatible (including any predicate) to validate the value, defaults to `string?`
-- `:name` name of the environment variable, defaults to capitalised name of the keyword (ignoring namespace) with dashes replaced with underscores
+- `:name` name of the environment variable, defaults to capitalised name of the var (ignoring namespace) with dashes replaced with underscores
 - `:require` fails validation, if value is missing, default is `false`
-- `:default` to provide a fallback value if it is missing
+- `:default` to provide a fallback value if it is missing, default is nil
 - `:secret` to hide value from `*out*` during validation, default is `false`
 
 ```clojure
-(cfg/def ::oauth-secret {:info    "OAuth secret to validate token"
-                         :require true
-                         :secret  true})
+(cfg/def oauth-secret {:doc    "OAuth secret to validate token"
+                       :require true
+                       :secret  true})
 
-(cfg/def ::host {:info "Remote host for a dependency service"
-                 :name "SERVICE_NAME_HOST"
-                 :require true})
+(cfg/def host {:info "Remote host for a dependency service"
+               :name "SERVICE_NAME_HOST"
+               :require true})
 ```
 
-If you prefer to keep your configuration in one file, you have an option to define whole config at once
+Then use those vars as you would use any other constant, i.e.: 
 
 ```clojure
-(cfg/defconfig {::oauth-secret {:info    "OAuth secret to validate token"
-                                :require true
-                                :secret  true}
-                ::host         {:info    "Remote host for a dependency service"
-                                :name    "SERVICE_NAME_HOST"
-                                :require true}})
+(cfg/def port {:name "NREPL_PORT"
+               :spec int?
+               :default 7888})
+
+(defstate nrepl-server
+  :start (nrepl-server/start-server :port port)
+  :stop (nrepl-server/stop-server nrepl))
 ```
 
-Then pull the value where need it. 
+If a value does not pass validation, `::cfg/invalid` will be used.
+
+To ensure you have everything configured properly, validate your config before app starts:
 
 ```clojure
-(cfg/get ::config/http-port)
-```
-
-Values will be available in static (meaning `def`s) and coerced to described spec if possible.
-If a value does not pass validation, `nil` will be used.
-
-No exceptions will be raised, because if there are multiple errors, you'll have to fix them one by one.
-Instead, to ensure you have everything configured properly, validate your config before app starts.
-
-```clojure
-(cfg/check-or-quit!)
+(defn -main [& args]
+  (println "Starting service!")
+  (if-not (cfg/validate-and-print)
+    (System/exit 1)))
 ```
 
 If everything is alright, then configuration will be printed to `*out*`,
 replacing values marked as `:secret` with `<SECRET>`. If there were errors during validation
 or required keys are missing, then aggregated summary will be printed and application will exit.
 
-If you need softer version, that does not quit, and wish to fix errors manually then use
+## Testing
+
+Idiomatic `with-redefs` could be used to alter var's value:
 
 ```clojure
-(cfg/check)
+(deftest a-test
+  (testing "All the right people"
+    (with-redefs [svc/user "Rich"]
+      (is (= svc/user "Rich")))))
 ```
 
 ## REPL and reloaded workflow
@@ -102,33 +108,25 @@ If during REPL development you ever need whole configuration map, it is availabl
 (cfg/config)
 ```
 
-If you use reloaded workflow, it may happen that you remove some defs during development. As those are statically 
-collected in a global var, you need to reset it **before** reloading your code:
+Note, that wrench relies on default reloading mechanics, maning that changes in config would not be reloaded with
+`(clojure.tools.namespace.repl/refresh)`.
+
+There is an option to user `refresh-all`, that will gurantee to pull latest data from your config file.
+
+If you want to load data from different config, wrap reloading in binding:
 
 ```clojure
-(cfg/reset-defs!)
+(defn reset
+  "stops all states defined by defstate, reloads modified source files, and restarts the states"
+  []
+  (stop)
+  (binding [cfg/*config-name* "dev-config.edn"]   
+    (ns-tools/refresh-all :after 'user/go)))
 ```
-
-To re-read your configuration
-
-```clojure
-(cfg/reload!)
-```
-
-Additionally you can use different filename or supply raw data
-
-```clojure
-(cfg/reload! "dev-config.edn")
-; or
-(cfg/reload! {:http-port 8080
-              :oauth-secret "xxxxxx"})
-```
-
-Be careful including sensitive data like keys, when using latter.
 
 ## License
 
-Copyright © 2017 Anton Chebotaev
+Copyright © 2018 Anton Chebotaev
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
