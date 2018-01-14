@@ -15,10 +15,10 @@ It is designed with specific goals in mind:
 - **All values are available during initialization of your code**
 - That means you can use it in your `def`s (and def-like macros, like `defroutes`)  
 - All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
-- Each configuration is accompanied with a spec
-- One can ensure that configuration matches provided specs during runtime
+- Each configuration could be accompanied with a custom spec
+- One can ensure that whole config matches provided specs during runtime
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
-- Definition of each key is traceable, since they are simple vars
+- Definition and usage of each key is traceable, since they are simple vars
 
 In addition to environment variables, for local development, wrench reads from `.config.edn`.
 
