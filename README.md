@@ -43,6 +43,7 @@ You can also customize name of the variable and provide specification:
                :spec int?})
 ```
 
+In this case loaded value would be coerced to an int.
 
 There are plenty of other options:
 
@@ -113,18 +114,17 @@ Idiomatic `with-redefs` could be used to alter var's value:
 (ns some.service
   (:require [wrench.core :as cfg]))
   
-(cfg/def user) 
+(cfg/def user {:default "Rich"}) 
 
 ;; service-test.clj
 (ns some.service-test
   (:require [clojure.test :refer :all]
             [some.service :as svc]))
  
-
 (deftest a-test
-  (testing "All the right people"
-    (with-redefs [svc/user "Rich"]
-      (is (= svc/user "Rich")))))
+  (testing "Let's talk about javascript"
+    (with-redefs [svc/user "David"]
+      (is (= svc/user "David")))))
 ```
 
 ## REPL and reloaded workflow
