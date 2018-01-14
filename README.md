@@ -24,7 +24,7 @@ In addition to environment variables, for local development, wrench reads from `
 
 ## Installation
 
-Add `[wrench "0.2.0"]` to the dependency section in your project.clj file.
+Add `[wrench "0.2.1"]` to the dependency section in your project.clj file.
 
 ## Usage
 
