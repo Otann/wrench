@@ -71,7 +71,7 @@ Then use those vars as you would use any other constant, i.e.:
 
 (defstate nrepl-server
   :start (nrepl-server/start-server :port port)
-  :stop (nrepl-server/stop-server nrepl))
+  :stop (nrepl-server/stop-server nrepl-server))
 ```
 
 If a value does not pass validation, `::cfg/invalid` will be used.
