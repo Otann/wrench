@@ -1,22 +1,19 @@
 (ns wrench.core
-  (:refer-clojure :rename {get core-get})
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.edn :as edn]))
 
 
-(defn- keywordize [s]
-  (-> (str/lower-case s)
-      (str/replace "_" "-")
-      (str/replace "." "-")
-      (keyword)))
+;; Minimal structure to carry config definition
+(deftype Uninitialized [definition])
+
+
+(defonce ^:dynamic *config-name* ".config.edn")
 
 
 (defn- read-system-env []
-  (->> (System/getenv)
-       (map (fn [[k v]] [(keywordize k) v]))
-       (into {})))
+  (into {} (System/getenv)))
 
 
 (defn read-edn-file [f]
@@ -25,17 +22,9 @@
       (edn/read-string (slurp env-file)))))
 
 
-(def ^:dynamic *default-config-name* ".config.edn")
-
-
-;; Contents of process environment. In production usually loaded once when code is loaded.
-;; During development can be reloaded using cfg/reload, including overrides from edn file
-(defonce ^:private env-data (atom (merge (read-edn-file *default-config-name*)
-                                         (read-system-env))))
-
-
-;; Config specs discovered while loading user's code. Every cfg/def call appends to this map.
-(defonce ^:private config-specs (atom {}))
+(defn- read-env-data []
+  (merge (read-system-env)
+         (read-edn-file *config-name*)))
 
 
 (def ^:private known-conformers
@@ -48,109 +37,113 @@
 (defn- edn-conformer [data]
   (try
     (edn/read-string data)
-    (catch Exception e ::s/invalid)))
+    (catch Exception e ::invalid)))
 
 
 (defn- coerce [data spec]
   (try
-    (let [conformer (core-get known-conformers spec edn-conformer)
+    (let [conformer (get known-conformers spec edn-conformer)
           with-conf (s/and (s/conformer conformer) spec)]
       (s/conform with-conf data))
-    (catch Exception e ::s/invalid)))
-
-(defn get
-  "Reads configuration value from
-  - environment variables, normalizing name to caps and underscores
-  - `.config.edn` as an edn file, intended for local development
-  - `:default` provided in field definition"
-  [field-name]
-  (let [spec      (get-in @config-specs [field-name :spec] string?)
-        default   (get-in @config-specs [field-name :default])
-        env-name  (get-in @config-specs [field-name :name] (keyword (name field-name)))
-        env-value (core-get @env-data env-name)]
-    (if env-value
-      (coerce env-value spec)
-      (get-in @config-specs [field-name :default]))))
-
-(defn select-from-ns [ns-str]
-  (let [ns-config-specs (->> @config-specs
-                             keys
-                             (filter #(= (namespace %) ns-str)))]
-    (into {} (for [k ns-config-specs]
-               [(keyword (name k)) (get k)]))))
-
-(defn def
-  "Defines a config to read and validate using a spec
-  Field name is encouraged to ba namespaced keyword, which name will
-  be used to match corresponding environment variable
-  Field definiton is a map that should include:
-  - `info` to print to *out* if validation failed
-  - `spec` spec to validate the value
-  - `require` to tell that validation should fail if value is missing
-  - `default` to provide a fallback value
-  - `secret to hide value from *out* during validation`"
-  [field-name field-def]
-  ;; TODO use spec for validation
-  {:pre [(string? (:info field-def))]}
-  (swap! config-specs #(assoc % field-name field-def)))
+    (catch Exception e ::invalid)))
 
 
-(defn defconfig [config]
-  {:pre [(every? #(string? (:info %))
-                 (vals config))]}
-  (swap! config-specs #(merge % config)))
-
-
-(defn- collect-errors []
-  (for [[field-name field-data] @config-specs]
-    (let [{:keys [info spec require default]
-           :or   {require false
-                  spec    string?}} field-data
-          config-value (get field-name)
-          is-invalid   (= config-value ::s/invalid)]
-      (cond
-        (and require (nil? config-value))
-        (str "Field " field-name " (" info ") is required and is absent or does not conform")
-
-        is-invalid
-        (str "Field " field-name " (" info ") was not required, but supplied and does not conform spec")))))
-
-
-(defn config []
-  (into {} (for [field-name (keys @config-specs)]
-             [field-name (get field-name)])))
-
-
-(defn check []
-  (every? nil? (collect-errors)))
-
-
-(defn check-or-quit!
-  "Ensures that every defined config conforms to it's spec if it is required, quits otherwise"
+(defn- find-all-vars
+  "Collects all defined configurations, based on attached meta"
   []
-  (let [errors (filter (complement nil?)
-                       (collect-errors))]
-    (if (empty? errors)
-      (do (for [[field-name value] (config)]
-            (println "- "
-                     field-name ": "
-                     (if (get-in @config-specs [field-name :secret])
-                       "<SECRET>"
-                       value))))
-      (do (map println errors)
-          (System/exit 1)))))
+  (for [n (all-ns)
+        [_ v] (ns-publics n)
+        :when (::definition (meta v))]
+    v))
 
 
-(defn reload!
-  ([] (reload! (read-edn-file *default-config-name*)))
-  ([override]
-   (let [data (cond
-                (map? override) override
-                (string? override) (read-edn-file override)
-                :else (throw (ex-info "reload supports only string/map override" {})))]
-     (reset! env-data (merge (read-system-env)
-                             data)))))
+(defn- cfg-error-msg [cfg-var]
+  (let [var-meta  (meta cfg-var)
+        required  (-> var-meta ::definition :require)
+        var-value (var-get cfg-var)
+        invalid?  (= var-value ::invalid)]
+    (cond
+      (and required (nil? var-value))
+      (str "Configuration " cfg-var " is required and is absent")
+
+      (and required invalid?)
+      (str "Configuration " cfg-var " is required and invalid: "
+           (pr-str (::loaded var-meta)))
+
+      invalid?
+      (str "Configuration " cfg-var " does not conform spec"))))
 
 
-(defn reset-defs! []
-  (reset! config-specs {}))
+(defn- printable-value [cfg-var]
+  (let [var-meta (meta cfg-var)
+        secret?  (-> var-meta ::definition :secret)]
+    (if secret? "<SECRET>" (var-get cfg-var))))
+
+
+(defn- symbol->env-name [var-symbol]
+  (-> (.sym var-symbol)
+      (str/upper-case)
+      (str/replace "-" "_")))
+
+
+(defn- symbol->keyword [var-symbol]
+  (keyword (.sym var-symbol)))
+
+
+(defn load-cfg [var-symbol]
+  (let [definition (.definition (var-get var-symbol))
+        spec       (get definition :spec string?)
+        default    (get definition :default)
+        env-name   (get definition :name (symbol->env-name var-symbol))
+        env-value  (or (get (read-env-data) env-name)
+                       (get (read-env-data) (symbol->keyword var-symbol)))
+        var-value  (if env-value
+                     (coerce env-value spec)
+                     (:default definition))
+        var-meta   {::definition definition
+                    ::loaded     env-value}
+        var-doc    (select-keys definition [:doc])]
+    (alter-var-root var-symbol (constantly var-value))
+    (alter-meta! var-symbol merge var-meta var-doc)
+    var-value))
+
+
+(defn config
+  "Provides map with all defined configs and their loaded values"
+  []
+  (->> (find-all-vars)
+       (map #(vector % (var-get %)))
+       (into {})))
+
+
+(defn validate-and-print
+  "Validates that all defined configurations mathces their requirements and returns.
+  Returns false if at least one definition is missing or does not confogrm to the spec.
+  Either prints loaded configuration or list of errors."
+  []
+  (let [all-vars (find-all-vars)
+        errors   (map cfg-error-msg all-vars)
+        valid?   (every? nil? errors)]
+    (if valid?
+      (do (println "Loaded config:")
+          (doseq [cfg-var (find-all-vars)]
+            (println "- " cfg-var (printable-value cfg-var))))
+      (do (println "Failed to load config:")
+          (doseq [error errors]
+            (when error (println error)))))
+    valid?))
+
+
+(defmacro def
+  "Defines a config to read from environment variable and validate with a spec
+  Definition map could could have:
+  - `doc` if provided, will be var's docstring
+  - `spec` spec to validate the value (default: string?)
+  - `name` name of the environment variable to read (default: uppercased var name)
+  - `require` to tell that validation should fail if value is missing (default: false)
+  - `default` to provide a fallback value (default: nil)
+  - `secret` if true, value will be replaced with <SECRET> while printing (default: false)"
+  [var-symbol & [raw-definition]]
+  `(do
+     (def ~var-symbol (Uninitialized. ~raw-definition))
+     (load-cfg #'~var-symbol)))
