@@ -18,7 +18,7 @@ It is designed with specific goals in mind:
 - Each configuration could be accompanied with a custom spec
 - One can ensure that whole config matches provided specs during runtime
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
-- Definition and usage of each key is traceable, since they are simple vars
+- Definition and usage of each key are easily traceable, since they are simple vars
 
 In addition to environment variables, for local development, wrench reads from `.config.edn`.
 
@@ -47,7 +47,7 @@ There are plenty of other options:
 
 - `:doc` will be symbol's documentation
 - `:spec` spec-compatible (including any predicate) to validate the value, defaults to `string?`
-- `:name` name of the environment variable, defaults to capitalised name of the var (ignoring namespace) with dashes replaced with underscores
+- `:name` name of the environment variable, defaults to uppercased name of the var (ignoring namespace) with dashes replaced with underscores
 - `:require` fails validation, if value is missing, default is `false`
 - `:default` to provide a fallback value if it is missing, default is nil
 - `:secret` to hide value from `*out*` during validation, default is `false`
