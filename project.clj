@@ -6,9 +6,10 @@
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]]
 
   :profiles {:uberjar {:aot :all}
-             :dev     {:plugins [[pjstadig/humane-test-output "0.8.2"]
-                                 [com.jakemccrary/lein-test-refresh "0.22.0"]
-                                 [com.taoensso/timbre "4.1.4"]]}}
+             :dev     {:dependencies [[org.clojure/tools.namespace "0.2.11"]]
+                       :plugins      [[pjstadig/humane-test-output "0.8.2"]
+                                      [com.jakemccrary/lein-test-refresh "0.22.0"]
+                                      [com.taoensso/timbre "4.1.4"]]}}
 
   ;; Artifact deployment info
   :scm {:name "git"

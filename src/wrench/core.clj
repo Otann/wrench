@@ -2,14 +2,15 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn])
+  (:import (clojure.lang Var)))
 
 
 ;; Minimal structure to carry config definition
 (deftype Uninitialized [definition])
 
 
-(defonce ^:dynamic *config-name* ".config.edn")
+(def ^:dynamic *config-name* ".config.edn")
 
 
 (defn- read-system-env []
@@ -57,7 +58,7 @@
     v))
 
 
-(defn- cfg-error-msg [cfg-var]
+(defn- cfg-error-msg [^Var cfg-var]
   (let [var-meta  (meta cfg-var)
         required  (-> var-meta ::definition :require)
         var-value (var-get cfg-var)
@@ -74,37 +75,37 @@
       (str "Configuration " cfg-var " does not conform spec"))))
 
 
-(defn- printable-value [cfg-var]
+(defn- printable-value [^Var cfg-var]
   (let [var-meta (meta cfg-var)
         secret?  (-> var-meta ::definition :secret)]
     (if secret? "<SECRET>" (var-get cfg-var))))
 
 
-(defn- symbol->env-name [var-symbol]
-  (-> (.sym var-symbol)
+(defn- symbol->env-name [^Var cfg-var]
+  (-> (.sym cfg-var)
       (str/upper-case)
       (str/replace "-" "_")))
 
 
-(defn- symbol->keyword [var-symbol]
-  (keyword (.sym var-symbol)))
+(defn- symbol->keyword [^Var cfg-var]
+  (keyword (.sym cfg-var)))
 
 
-(defn load-cfg [var-symbol]
-  (let [definition (.definition (var-get var-symbol))
+(defn load-cfg [^Var cfg-var]
+  (let [definition (.definition (var-get cfg-var))
         spec       (get definition :spec string?)
         default    (get definition :default)
-        env-name   (get definition :name (symbol->env-name var-symbol))
+        env-name   (get definition :name (symbol->env-name cfg-var))
         env-value  (or (get (read-env-data) env-name)
-                       (get (read-env-data) (symbol->keyword var-symbol)))
+                       (get (read-env-data) (symbol->keyword cfg-var)))
         var-value  (if env-value
                      (coerce env-value spec)
                      (:default definition))
         var-meta   {::definition definition
                     ::loaded     env-value}
         var-doc    (select-keys definition [:doc])]
-    (alter-var-root var-symbol (constantly var-value))
-    (alter-meta! var-symbol merge var-meta var-doc)
+    (alter-var-root cfg-var (constantly var-value))
+    (alter-meta! cfg-var merge var-meta var-doc)
     var-value))
 
 
@@ -145,5 +146,5 @@
   - `secret` if true, value will be replaced with <SECRET> while printing (default: false)"
   [var-symbol & [raw-definition]]
   `(do
-     (def ~var-symbol (Uninitialized. ~raw-definition))
+     (def ~var-symbol (Uninitialized. (or ~raw-definition {})))
      (load-cfg #'~var-symbol)))
