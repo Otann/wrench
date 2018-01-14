@@ -10,7 +10,7 @@
 (deftype Uninitialized [definition])
 
 
-(def ^:dynamic *config-name* ".config.edn")
+(def ^:dynamic *config-name* "dev-config.edn")
 
 
 (defn- read-system-env []
@@ -65,14 +65,10 @@
         invalid?  (= var-value ::invalid)]
     (cond
       (and required (nil? var-value))
-      (str "Configuration " cfg-var " is required and is absent")
-
-      (and required invalid?)
-      (str "Configuration " cfg-var " is required and invalid: "
-           (pr-str (::loaded var-meta)))
+      (str "- configuration " cfg-var " is required and is missing")
 
       invalid?
-      (str "Configuration " cfg-var " does not conform spec"))))
+      (str "- configuration " cfg-var " present, but does not conform spec: " (pr-str (::loaded var-meta))))))
 
 
 (defn- printable-value [^Var cfg-var]

@@ -20,7 +20,7 @@ It is designed with specific goals in mind:
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
 - Definition and usage of each key are easily traceable, since they are simple vars
 
-In addition to environment variables, for local development, wrench reads from `.config.edn`.
+In addition to environment variables, for local development, wrench reads from `dev-config.edn`.
 
 ## Installation
 
@@ -28,7 +28,8 @@ Add `[wrench "0.2.0"]` to the dependency section in your project.clj file.
 
 ## Usage
 
-Simplest way to start is to define a config value to read `USER` environment variable: 
+Simplest way to use it is to define a config with a simple `def`. 
+For instance, if you want to read environment variable `USER` you would do following:  
 
 ```clojure
 (require '[wrench.core :as cfg])
@@ -57,7 +58,7 @@ There are plenty of other options:
                        :require true
                        :secret  true})
 
-(cfg/def host {:info "Remote host for a dependency service"
+(cfg/def host {:doc "Remote host for a dependency service"
                :name "SERVICE_NAME_HOST"
                :require true})
 ```
@@ -69,7 +70,7 @@ Then use those vars as you would use any other constant, i.e.:
                :spec int?
                :default 7888})
 
-(defstate nrepl-server
+(mount/defstate nrepl-server
   :start (nrepl-server/start-server :port port)
   :stop (nrepl-server/stop-server nrepl-server))
 ```
@@ -86,14 +87,40 @@ To ensure you have everything configured properly, validate your config before a
 ```
 
 If everything is alright, then configuration will be printed to `*out*`,
-replacing values marked as `:secret` with `<SECRET>`. If there were errors during validation
-or required keys are missing, then aggregated summary will be printed and application will exit.
+replacing values marked as `:secret` with `<SECRET>`:
+ 
+```
+Loaded config:
+-  #'some.service/port 8080
+-  #'some.auth/token <SECRET>
+``` 
+ 
+If there were errors during validation
+or required keys are missing, then aggregated summary will be printed and `false` returned:
+
+```
+Failed to load config:
+- configuration #'some.service/token is required and is missing
+- configuration #'some.service/port present, but does not conform spec: something-wrong
+```
 
 ## Testing
 
 Idiomatic `with-redefs` could be used to alter var's value:
 
 ```clojure
+;; service.clj
+(ns some.service
+  (:require [wrench.core :as cfg]))
+  
+(cfg/def user) 
+
+;; service-test.clj
+(ns some.service-test
+  (:require [clojure.test :refer :all]
+            [some.service :as svc]))
+ 
+
 (deftest a-test
   (testing "All the right people"
     (with-redefs [svc/user "Rich"]
