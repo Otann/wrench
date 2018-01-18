@@ -93,7 +93,7 @@ replacing values marked as `:secret` with `<SECRET>`:
 ```
 Loaded config:
 -  #'some.service/port 8080
--  #'some.auth/token <SECRET>
+-  #'some.service/token <SECRET>
 ``` 
  
 If there were errors during validation
@@ -162,7 +162,7 @@ To mitigate this you could either use `refresh-all` or reload config manually be
   (start))
 ```
 
-If you want to load data from different config provide an additional data source to `reset!`:
+If you want to load data from additional data source to `reset!`:
 
 ```clojure
 (defn go "starts all states defined by defstate" []
@@ -170,6 +170,14 @@ If you want to load data from different config provide an additional data source
   (start))
 ```
 
+You can also rewrite values manually, use any combiation that suits you:
+
+```clojure
+(defn go "starts all states defined by defstate" []
+  (cfg/reset! :with-env (cfg/from-file "dev-config.edn")
+              :with-redefs {svc/port "8080"})
+  (start))
+```
 
 ## License
 
