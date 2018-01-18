@@ -11,16 +11,10 @@
 (cfg/def port {:default 8080
                :spec    int?})
 
-(cfg/def test-list {:spec (s/+ int?)})
-
 (deftest sources
   ;; We hope that USER is present in every OS
   (testing "Reading from env-var"
-    (is (= user (System/getenv "USER"))))
-
-  (testing "Coersion"
-    (is (= test-list [1 2 3]))))
-
+    (is (= user (System/getenv "USER")))))
 
 (deftest coercion
   (testing "Coercions work and are idempotent"
@@ -36,13 +30,8 @@
 
 (deftest collection
   (testing "Config collection works"
-    (cfg/def user)
-    (cfg/def port {:default 8080
-                   :spec    int?})
-
     (is (= {#'user      (System/getenv "USER")
-            #'port      8080
-            #'test-list [1 2 3]}
+            #'port      8080}
            (cfg/config)))
 
     (is (cfg/validate-and-print))))

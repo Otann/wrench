@@ -24,7 +24,7 @@ In addition to environment variables, for local development, wrench reads from `
 
 ## Installation
 
-Add `[wrench "0.2.1"]` to the dependency section in your project.clj file.
+Add `[wrench "0.2.2"]` to the dependency section in your project.clj file.
 
 ## Usage
 
@@ -127,6 +127,22 @@ Idiomatic `with-redefs` could be used to alter var's value:
       (is (= svc/user "David")))))
 ```
 
+You can also permanently alter config, by providing alternative values to vars:
+
+```clojure
+(cfg/reset! :with-redefs {svc/user "David"})
+```
+
+or environment variables
+
+```clojure
+(cfg/reset! :with-env {"PORTS" "[8080 8081 8082]"})
+; or load from file
+(cfg/reset! :with-env (cfg/from-file "dev-config.edn"))
+```
+
+Those changes will be applied to global scope, your expirience may vary depending on your test runner.
+
 ## REPL and reloaded workflow
 
 If during REPL development you ever need whole configuration map, it is available using:
@@ -138,18 +154,22 @@ If during REPL development you ever need whole configuration map, it is availabl
 Note, that wrench relies on default reloading mechanics, maning that changes in config would not be reloaded with
 `(clojure.tools.namespace.repl/refresh)`.
 
-There is an option to user `refresh-all`, that will gurantee to pull latest data from your config file.
-
-If you want to load data from different config, wrap reloading in binding:
+To mitigate this you could either use `refresh-all` or reload config manually before your system starts:
 
 ```clojure
-(defn reset
-  "stops all states defined by defstate, reloads modified source files, and restarts the states"
-  []
-  (stop)
-  (binding [cfg/*config-name* "dev-config.edn"]   
-    (ns-tools/refresh-all :after 'user/go)))
+(defn go "starts all states defined by defstate" []
+  (cfg/reset!)
+  (start))
 ```
+
+If you want to load data from different config provide an additional data source to `reset!`:
+
+```clojure
+(defn go "starts all states defined by defstate" []
+  (cfg/reset! :with-env (cfg/from-file "dev-config.edn"))
+  (start))
+```
+
 
 ## License
 

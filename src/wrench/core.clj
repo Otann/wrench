@@ -10,22 +10,13 @@
 (deftype Uninitialized [definition])
 
 
-(def ^:dynamic *config-name* "dev-config.edn")
+(def system-env (into {} (System/getenv)))
 
 
-(defn- read-system-env []
-  (into {} (System/getenv)))
-
-
-(defn read-edn-file [f]
+(defn from-file [f]
   (when-let [env-file (io/file f)]
     (when (.exists env-file)
       (edn/read-string (slurp env-file)))))
-
-
-(defn- read-env-data []
-  (merge (read-system-env)
-         (read-edn-file *config-name*)))
 
 
 (def ^:private known-conformers
@@ -49,7 +40,7 @@
     (catch Exception e ::invalid)))
 
 
-(defn- find-all-vars
+(defn find-all-vars
   "Collects all defined configurations, based on attached meta"
   []
   (for [n (all-ns)
@@ -87,19 +78,20 @@
   (keyword (.sym cfg-var)))
 
 
-(defn load-cfg [^Var cfg-var]
-  (let [definition (.definition (var-get cfg-var))
-        spec       (get definition :spec string?)
-        default    (get definition :default)
-        env-name   (get definition :name (symbol->env-name cfg-var))
-        env-value  (or (get (read-env-data) env-name)
-                       (get (read-env-data) (symbol->keyword cfg-var)))
-        var-value  (if env-value
-                     (coerce env-value spec)
-                     (:default definition))
-        var-meta   {::definition definition
-                    ::loaded     env-value}
-        var-doc    (select-keys definition [:doc])]
+(defn reset-cfg! [^Var cfg-var definition extra-env extra-redefs]
+  (let [spec      (get definition :spec string?)
+        default   (get definition :default)
+        env-name  (get definition :name (symbol->env-name cfg-var))
+        env-map   (merge system-env extra-env)
+        env-value (or (get env-map env-name)
+                      (get env-map (symbol->keyword cfg-var))
+                      (get extra-redefs cfg-var))
+        var-value (if env-value
+                    (coerce env-value spec)
+                    (:default definition))
+        var-meta  {::definition definition
+                   ::loaded     env-value}
+        var-doc   (select-keys definition [:doc])]
     (alter-var-root cfg-var (constantly var-value))
     (alter-meta! cfg-var merge var-meta var-doc)
     var-value))
@@ -141,6 +133,32 @@
   - `default` to provide a fallback value (default: nil)
   - `secret` if true, value will be replaced with <SECRET> while printing (default: false)"
   [var-symbol & [raw-definition]]
-  `(do
-     (def ~var-symbol (Uninitialized. (or ~raw-definition {})))
-     (load-cfg #'~var-symbol)))
+  (let [definition# (or raw-definition {})]
+    `(do
+       (def ~var-symbol ::uninitialised)
+       (reset-cfg! #'~var-symbol ~definition# nil nil))))
+
+
+(defn reset-all-vars! [redefs extra-env]
+  (doseq [cfg-var (find-all-vars)]
+    (reset-cfg! cfg-var (::definition (meta cfg-var)) extra-env redefs)))
+
+
+(defmacro reset!
+  "Reloads all loaded configuration vars, using extra datasources, provided as parameters to this macro:
+  - :with-redefs accepts map of existing vars that should be replaced
+  - :with-env accepts map with that simulates extra environment variables passed"
+  [& {:keys [with-redefs with-env]}]
+  (let [redefs# (into {} (for [[k v] with-redefs] `[#'~k ~v]))]
+    `(reset-all-vars! ~redefs# ~with-env)))
+
+
+
+(comment
+
+  (cfg/reset! :with-env {"PORTS" "[8080 8081 8082]"})
+
+  (cfg/reset! :with-env (from-file "dev-config.edn"))
+
+
+  )
