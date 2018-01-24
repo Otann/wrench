@@ -1,4 +1,5 @@
 (ns wrench.core
+  (:refer-clojure :rename {reset! core-reset!})
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
