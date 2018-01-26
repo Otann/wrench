@@ -2,6 +2,7 @@
 
 [![Circle CI](https://circleci.com/gh/Otann/wrench.svg?style=shield&no-cache=0)](https://circleci.com/gh/Otann/wrench)
 [![Clojars](https://img.shields.io/clojars/v/wrench.svg?no-cache=1)](https://clojars.org/wrench)
+[![codecov](https://codecov.io/gh/Otann/wrench/branch/master/graph/badge.svg)](https://codecov.io/gh/Otann/wrench)
 
 <img width="25%"
      max-height="100px"
