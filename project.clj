@@ -5,6 +5,8 @@
 
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]]
 
+  :plugins [[lein-cloverage "1.0.9"]]
+
   :profiles {:uberjar {:aot :all}
              :dev     {:dependencies [[org.clojure/tools.namespace "0.2.11"]]
                        :plugins      [[pjstadig/humane-test-output "0.8.2"]

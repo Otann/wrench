@@ -6,15 +6,27 @@
             [wrench.core :as cfg]))
 
 
-(cfg/def user {:doc "Currently logged-in user"})
+(cfg/def user)
+(cfg/def path {:spec int?})
+(cfg/def port {:default 8080 :spec int?})
+(cfg/def missing {:require true})
+(cfg/def conformed {:spec (s/+ int?)})
 
-(cfg/def port {:default 8080
-               :spec    int?})
 
 (deftest sources
   ;; We hope that USER is present in every OS
   (testing "Reading from env-var"
-    (is (= user (System/getenv "USER")))))
+    (is (= user (System/getenv "USER")))
+
+    (cfg/reset! :with-env {"CONFORMED" "[1 2 3]"})
+    (is (= conformed [1 2 3]))
+
+    (cfg/reset! :with-env {"CONFORMED" "1,2,3"})
+    (is (= conformed ::cfg/invalid))
+
+    (cfg/reset! :with-env (cfg/from-file "test/config.edn"))
+    (is (= user "from-file"))))
+
 
 (deftest coercion
   (testing "Coercions work and are idempotent"
@@ -30,8 +42,25 @@
 
 (deftest collection
   (testing "Config collection works"
-    (is (= {#'user      (System/getenv "USER")
-            #'port      8080}
-           (cfg/config)))
+    (is (= (System/getenv "USER")
+           (get (cfg/config) #'user)))
+    (is (= 8080
+           (get (cfg/config) #'port)))))
 
-    (is (cfg/validate-and-print))))
+
+(deftest errors
+  (testing "Spec mismatch"
+    (is (= ::cfg/invalid path)))
+
+  (testing "Missing config"
+    (is (= nil missing))
+    (is (false? (cfg/validate-and-print))))
+
+  (testing "With fixed errors"
+    (cfg/reset! :with-redefs {missing "foo"
+                              path    239})
+    (is (true? (cfg/validate-and-print)))))
+
+
+
+

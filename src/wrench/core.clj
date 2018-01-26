@@ -36,8 +36,11 @@
 (defn- coerce [data spec]
   (try
     (let [conformer (get known-conformers spec edn-conformer)
-          with-conf (s/and (s/conformer conformer) spec)]
-      (s/conform with-conf data))
+          with-conf (s/and (s/conformer conformer) spec)
+          conformed (s/conform with-conf data)]
+      (if (= conformed ::s/invalid)
+        ::invalid
+        conformed))
     (catch Exception e ::invalid)))
 
 
@@ -84,9 +87,9 @@
         default   (get definition :default)
         env-name  (get definition :name (symbol->env-name cfg-var))
         env-map   (merge system-env extra-env)
-        env-value (or (get env-map env-name)
-                      (get env-map (symbol->keyword cfg-var))
-                      (get extra-redefs cfg-var))
+        env-value (or (get extra-redefs cfg-var)
+                      (get env-map env-name)
+                      (get env-map (symbol->keyword cfg-var)))
         var-value (if env-value
                     (coerce env-value spec)
                     (:default definition))
