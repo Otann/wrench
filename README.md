@@ -142,7 +142,7 @@ or environment variables
 (cfg/reset! :with-env (cfg/from-file "dev-config.edn"))
 ```
 
-Those changes will be applied to global scope, your expirience may vary depending on your test runner.
+Those changes will be applied to global scope, your experience may vary depending on your test runner.
 
 ## REPL and reloaded workflow
 
