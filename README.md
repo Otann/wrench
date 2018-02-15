@@ -27,6 +27,8 @@ In addition to environment variables, for local development, wrench reads from `
 
 Add `[wrench "0.2.3"]` to the dependency section in your project.clj file.
 
+Wrench requires 1.9 version of Clojure.
+
 ## Usage
 
 Simplest way to use it is to define a config with a simple `def`. 
