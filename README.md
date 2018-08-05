@@ -25,7 +25,7 @@ In addition to environment variables, for local development, wrench reads from `
 
 ## Installation
 
-Add `[wrench "0.2.3"]` to the dependency section in your project.clj file.
+Add `[wrench "0.3.0"]` to the dependency section in your project.clj file.
 
 Wrench requires 1.9 version of Clojure.
 
@@ -133,15 +133,18 @@ Idiomatic `with-redefs` could be used to alter var's value:
 You can also permanently alter config, by providing alternative values to vars:
 
 ```clojure
-(cfg/reset! :with-redefs {svc/user "David"})
+(cfg/reset! :var {#'svc/user "David"})
 ```
 
 or environment variables
 
 ```clojure
-(cfg/reset! :with-env {"PORTS" "[8080 8081 8082]"})
+(cfg/reset! :env {"PORTS" "[8080 8081 8082]"})
 ; or load from file
-(cfg/reset! :with-env (cfg/from-file "dev-config.edn"))
+(cfg/reset! :env (cfg/from-file "dev-config.edn"))
+;; or in combination
+(cfg/reset! :env (from-file "dev-config.edn")
+            :var {#'ports [8080 8081]})
 ```
 
 Those changes will be applied to global scope, your experience may vary depending on your test runner.
@@ -154,32 +157,17 @@ If during REPL development you ever need whole configuration map, it is availabl
 (cfg/config)
 ```
 
-Note, that wrench relies on default reloading mechanics, maning that changes in config would not be reloaded with
+Note, that wrench relies on default reloading mechanics, maning that changes in environment variables
+or in external config file would not trigger reloading variables with 
 `(clojure.tools.namespace.repl/refresh)`.
 
 To mitigate this you could either use `refresh-all` or reload config manually before your system starts:
 
 ```clojure
-(defn go "starts all states defined by defstate" []
-  (cfg/reset!)
-  (start))
-```
-
-If you want to load data from additional data source to `reset!`:
-
-```clojure
-(defn go "starts all states defined by defstate" []
-  (cfg/reset! :with-env (cfg/from-file "dev-config.edn"))
-  (start))
-```
-
-You can also rewrite values manually, use any combiation that suits you:
-
-```clojure
-(defn go "starts all states defined by defstate" []
-  (cfg/reset! :with-env (cfg/from-file "dev-config.edn")
-              :with-redefs {svc/port "8080"})
-  (start))
+(defn reset "reloads modified source files, and restarts the states" []
+  (stop)
+  (cfg/reset! :env (cfg/from-file "dev-config.edn"))
+  (ns-tools/refresh :after 'user/go))
 ```
 
 ## License

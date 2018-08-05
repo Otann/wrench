@@ -5,27 +5,55 @@
             [clojure.tools.namespace.repl :as ns-tools]
             [wrench.core :as cfg]))
 
-
+;; Let's hope that USER is presented on every OS that we test on
 (cfg/def user)
-(cfg/def path {:spec int?})
+(cfg/def nick {:name "USER"})
+(deftest sources-of-values
+
+  (testing "when cfg/def used, then value is read from environment variables"
+    (is (= user (System/getenv "USER"))))
+
+  (testing "when custom name is provided, config uses to read from env"
+    (is (= nick (System/getenv "USER"))))
+
+  (testing "when env is faked, then corresponding configs are reset"
+    (cfg/reset! :env {"USER" "root-env"})
+    (is (= user "root-env")))
+
+  (testing "when var is faked, then it's value is replaces"
+    (cfg/reset! :var {#'user "root-var"})
+    (is (= user "root-var"))))
+
+
 (cfg/def port {:default 8080 :spec int?})
-(cfg/def missing {:require true})
-(cfg/def conformed {:spec (s/+ int?)})
+(deftest default-values
 
+  (testing "when not supplied in env, then default value is used"
+    (is (= nil (System/getenv "PORT")))
+    (is (= port 8080)))
 
-(deftest sources
-  ;; We hope that USER is present in every OS
-  (testing "Reading from env-var"
-    (is (= user (System/getenv "USER")))
+  (testing "when overriden with fake, then default is replaced by it"
+    (cfg/reset! :env {"PORT" "9000"})
+    (is (= port 9000)))
 
-    (cfg/reset! :with-env {"CONFORMED" "[1 2 3]"})
-    (is (= conformed [1 2 3]))
+  (testing "when default does not conform to spec, then cfg is set to ::invalid"
+    (cfg/reset! :env {"PORT" "hahaha"})
+    (is (= port ::cfg/invalid))))
 
-    (cfg/reset! :with-env {"CONFORMED" "1,2,3"})
-    (is (= conformed ::cfg/invalid))
+(cfg/def missing-not-required)
+(cfg/def missing-but-required {:require true})
+(cfg/def required-with-default {:require true
+                                :default "default-value"})
+(deftest required
 
-    (cfg/reset! :with-env (cfg/from-file "test/config.edn"))
-    (is (= user "from-file"))))
+  (testing "when env var is missing, then value is nil"
+    (is (= missing-not-required nil)))
+
+  (testing "when env var is missing, but required, then value is nil"
+    (is (= missing-but-required nil)))
+
+  (testing "when env var is missing, cfg is required and default is provided, then default is used"
+    (is (= required-with-default "default-value"))))
 
 
 (deftest coercion
@@ -40,25 +68,26 @@
       "foo" keyword? :foo)))
 
 
-(deftest collection
-  (testing "Config collection works"
-    (is (= (System/getenv "USER")
-           (get (cfg/config) #'user)))
-    (is (= 8080
-           (get (cfg/config) #'port)))))
+(deftest config-collection
+  (cfg/reset! :env {} :var {})
+  (testing "config contains defined above vars"
+    (is (contains? (cfg/config) #'user))
+    (is (contains? (cfg/config) #'port)))
+
+  (testing "config contains correct values for vars"
+    (is (= (get (cfg/config) #'user)
+           (System/getenv "USER")))
+    (is (= (get (cfg/config) #'port)
+           8080))))
 
 
-(deftest errors
-  (testing "Spec mismatch"
-    (is (= ::cfg/invalid path)))
+(deftest errors-reporting
 
-  (testing "Missing config"
-    (is (= nil missing))
+  (testing "when there are missing values, validation fails (config is defined above)"
     (is (false? (cfg/validate-and-print))))
 
-  (testing "With fixed errors"
-    (cfg/reset! :with-redefs {missing "foo"
-                              path    239})
+  (testing "when errors are fixed with fake values, validation passes"
+    (cfg/reset! :var {#'missing-but-required "value"})
     (is (true? (cfg/validate-and-print)))))
 
 

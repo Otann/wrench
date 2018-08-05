@@ -53,6 +53,14 @@
     v))
 
 
+(defn config
+  "Provides map with all defined configs and their loaded values"
+  []
+  (->> (find-all-vars)
+       (map #(vector % (var-get %)))
+       (into {})))
+
+
 (defn- cfg-error-msg [^Var cfg-var]
   (let [var-meta  (meta cfg-var)
         required  (-> var-meta ::definition :require)
@@ -70,43 +78,6 @@
   (let [var-meta (meta cfg-var)
         secret?  (-> var-meta ::definition :secret)]
     (if secret? "<SECRET>" (var-get cfg-var))))
-
-
-(defn- symbol->env-name [^Var cfg-var]
-  (-> (.sym cfg-var)
-      (str/upper-case)
-      (str/replace "-" "_")))
-
-
-(defn- symbol->keyword [^Var cfg-var]
-  (keyword (.sym cfg-var)))
-
-
-(defn reset-cfg! [^Var cfg-var definition extra-env extra-redefs]
-  (let [spec      (get definition :spec string?)
-        default   (get definition :default)
-        env-name  (get definition :name (symbol->env-name cfg-var))
-        env-map   (merge system-env extra-env)
-        env-value (or (get extra-redefs cfg-var)
-                      (get env-map env-name)
-                      (get env-map (symbol->keyword cfg-var)))
-        var-value (if env-value
-                    (coerce env-value spec)
-                    (:default definition))
-        var-meta  {::definition definition
-                   ::loaded     env-value}
-        var-doc   (select-keys definition [:doc])]
-    (alter-var-root cfg-var (constantly var-value))
-    (alter-meta! cfg-var merge var-meta var-doc)
-    var-value))
-
-
-(defn config
-  "Provides map with all defined configs and their loaded values"
-  []
-  (->> (find-all-vars)
-       (map #(vector % (var-get %)))
-       (into {})))
 
 
 (defn validate-and-print
@@ -127,6 +98,32 @@
     valid?))
 
 
+(defn- symbol->env-name [^Var cfg-var]
+  (-> (.sym cfg-var)
+      (str/upper-case)
+      (str/replace "-" "_")))
+
+
+(defn- symbol->keyword [^Var cfg-var]
+  (keyword (.sym cfg-var)))
+
+
+(def ^:private dev-env (atom {}))
+(def ^:private dev-var (atom {}))
+
+
+(defn evaluate-cfg [^Var cfg-var definition]
+  (let [spec      (get definition :spec string?)
+        default   (get definition :default)
+        env-name  (get definition :name (symbol->env-name cfg-var))
+        env-value (or (get @dev-var cfg-var)
+                      (get @dev-env env-name)
+                      (get system-env env-name))]
+    (if env-value
+      (coerce env-value spec)
+      (:default definition))))
+
+
 (defmacro def
   "Defines a config to read from environment variable and validate with a spec
   Definition map could could have:
@@ -139,30 +136,35 @@
   [var-symbol & [raw-definition]]
   (let [definition# (or raw-definition {})]
     `(do
-       (def ~var-symbol ::uninitialised)
-       (reset-cfg! #'~var-symbol ~definition# nil nil))))
+       (def
+         ~(vary-meta var-symbol assoc ::definition definition#)
+         (evaluate-cfg #'~var-symbol ~definition#)))))
 
 
-(defn reset-all-vars! [redefs extra-env]
+(defn reload [var-symbol]
+  (when-let [definition (::definition (meta var-symbol))]
+    (let [new-value (evaluate-cfg var-symbol definition)]
+      (alter-var-root var-symbol (constantly new-value)))))
+
+
+(defn reset!
+  "Fakes value of configs for repl-driven development
+  - :var accepts map of existing vars that should be replaced
+  - :env accepts map with that simulates extra environment variables passed"
+  [& {:keys [var env]}]
+  (core-reset! dev-env env)
+  (core-reset! dev-var var)
   (doseq [cfg-var (find-all-vars)]
-    (reset-cfg! cfg-var (::definition (meta cfg-var)) extra-env redefs)))
-
-
-(defmacro reset!
-  "Reloads all loaded configuration vars, using extra datasources, provided as parameters to this macro:
-  - :with-redefs accepts map of existing vars that should be replaced
-  - :with-env accepts map with that simulates extra environment variables passed"
-  [& {:keys [with-redefs with-env]}]
-  (let [redefs# (into {} (for [[k v] with-redefs] `[#'~k ~v]))]
-    `(reset-all-vars! ~redefs# ~with-env)))
-
+    (reload cfg-var)))
 
 
 (comment
 
-  (cfg/reset! :with-env {"PORTS" "[8080 8081 8082]"})
+  (cfg/reset! :var {#'ports [8080 8081]})
 
-  (cfg/reset! :with-env (from-file "dev-config.edn"))
+  (cfg/reset! :env {"SERVER_PORTS" "[8080 8081 8082]"})
 
+(cfg/reset! :env (from-file "dev-config.edn")
+            :var {#'ports [8080 8081]})
 
   )
