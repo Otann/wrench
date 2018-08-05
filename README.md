@@ -20,8 +20,7 @@ It is designed with specific goals in mind:
 - One can ensure that whole config matches provided specs during runtime
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
 - Definition and usage of each key are easily traceable, since they are simple vars
-
-In addition to environment variables, for local development, wrench reads from `dev-config.edn`.
+- For local development extra values could be provided in REPL and from local EDN file
 
 ## Installation
 
