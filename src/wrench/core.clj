@@ -21,9 +21,10 @@
 
 
 (def ^:private known-conformers
-  {int?     #(if (int? %) % (Integer/parseInt %))
+  {string?  str
+   int?     #(if (int? %) % (Integer/parseInt %))
    double?  #(if (double? %) % (Double/parseDouble %))
-   string?  str
+   boolean? #(if (boolean? %) % (Boolean/parseBoolean %))
    keyword? keyword})
 
 
@@ -164,7 +165,7 @@
 
   (cfg/reset! :env {"SERVER_PORTS" "[8080 8081 8082]"})
 
-(cfg/reset! :env (from-file "dev-config.edn")
-            :var {#'ports [8080 8081]})
+  (cfg/reset! :env (from-file "dev-config.edn")
+              :var {#'ports [8080 8081]})
 
   )

@@ -65,6 +65,9 @@
       "123" int? 123
       "1.5" double? 1.5
       12345 string? "12345"
+      "false" boolean? false
+      "" boolean? false
+      "true" boolean? true
       "foo" keyword? :foo)))
 
 
