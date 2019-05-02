@@ -47,6 +47,9 @@ You can also customize name of the variable and provide specification:
 
 In this case loaded value would be coerced to an int.
 
+Following specs are coerced to corresponding values: `string?`, `int?`, `double?`, `boolean?`, `keyword?`.
+EVerything else is coerced to edn.
+
 There are plenty of other options:
 
 - `:doc` will be symbol's documentation
