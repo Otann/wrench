@@ -24,7 +24,7 @@ It is designed with specific goals in mind:
 
 ## Installation
 
-Add `[wrench "0.3.0"]` to the dependency section in your project.clj file.
+Add `[wrench "0.3.3"]` to the dependency section in your project.clj file.
 
 Wrench requires 1.9 version of Clojure.
 
@@ -41,8 +41,7 @@ For instance, if you want to read environment variable `USER` you would do follo
 You can also customize name of the variable and provide specification:
 
 ```clojure
-(cfg/def port {:name "HTTP_PORT"
-               :spec int?})
+(cfg/def port {:name "HTTP_PORT", :spec int?})
 ```
 
 In this case loaded value would be coerced to an int.

@@ -1,9 +1,10 @@
-(defproject wrench "0.3.2"
+(defproject wrench "0.3.3"
   :description "Elegant project configuration for a more civilised age"
 
   :url "https://github.com/otann/wrench"
 
-  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+                 [org.clojure/tools.logging "0.5.0"]]
 
   :plugins [[lein-cloverage "1.0.9"]]
 

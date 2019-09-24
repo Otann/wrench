@@ -3,7 +3,8 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [clojure.tools.logging :as log])
   (:import (clojure.lang Var)))
 
 
@@ -81,22 +82,35 @@
     (if secret? "<SECRET>" (var-get cfg-var))))
 
 
-(defn validate-and-print
-  "Validates that all defined configurations mathces their requirements and returns.
-  Returns false if at least one definition is missing or does not confogrm to the spec.
-  Either prints loaded configuration or list of errors."
-  []
+(defn- validate-and-notify
+  [notify-valid notify-invalid]
   (let [all-vars (find-all-vars)
         errors   (map cfg-error-msg all-vars)
         valid?   (every? nil? errors)]
     (if valid?
-      (do (println "Loaded config:")
-          (doseq [cfg-var (find-all-vars)]
-            (println "- " cfg-var (printable-value cfg-var))))
-      (do (println "Failed to load config:")
+      (do (notify-valid "Loaded config:")
+          (doseq [cfg-var all-vars]
+            (notify-valid "- " cfg-var (printable-value cfg-var))))
+      (do (notify-invalid "Failed to load config:")
           (doseq [error errors]
-            (when error (println error)))))
+            (when error (notify-invalid error)))))
     valid?))
+
+
+(defn validate-and-print
+  "Validates that all defined configurations matches their requirements and returns.
+  Returns false if at least one definition is missing or does not conform to the spec.
+  Either prints loaded configuration or list of errors."
+  []
+  (validate-and-notify println println))
+
+
+(defn validate-and-log
+  "Validates that all defined configurations matches their requirements and returns.
+  Returns false if at least one definition is missing or does not conform to the spec.
+  Either logs loaded configuration as info or list of errors with error log level"
+  []
+  (validate-and-notify log/info log/error))
 
 
 (defn- symbol->env-name [^Var cfg-var]
@@ -122,7 +136,7 @@
                       (get system-env env-name))]
     (if env-value
       (coerce env-value spec)
-      (:default definition))))
+      default)))
 
 
 (defmacro def
