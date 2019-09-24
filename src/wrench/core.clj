@@ -105,12 +105,17 @@
   (validate-and-notify println println))
 
 
+;; helper functions to log validation results
+(defn- log-info [& args] (log/info (apply print-str args)))
+(defn- log-error [& args] (log/error (apply print-str args)))
+
+
 (defn validate-and-log
   "Validates that all defined configurations matches their requirements and returns.
   Returns false if at least one definition is missing or does not conform to the spec.
   Either logs loaded configuration as info or list of errors with error log level"
   []
-  (validate-and-notify log/info log/error))
+  (validate-and-notify log-info log-error))
 
 
 (defn- symbol->env-name [^Var cfg-var]
