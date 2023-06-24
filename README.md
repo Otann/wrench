@@ -15,7 +15,7 @@ It is designed with specific goals in mind:
 
 - **All values are available during initialization of your code**
 - That means you can use it in your `def`s (and def-like macros, like `defroutes`)  
-- All values come from environment variables, as [12 factors menifesto](https://12factor.net/config) recommends
+- All values come from environment variables, as [12 factors manifesto](https://12factor.net/config) recommends
 - Each configuration could be accompanied with a custom spec
 - One can ensure that whole config matches provided specs during runtime
 - Configuration values are coerced to their spec from string and edn (enables values like `[8080 8888]`)
